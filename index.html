@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Detonoid: Chaos & Build Breaker</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #08090d;
+      color: #66fcf1;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      padding: 6px 4px;
+      user-select: none;
+      -webkit-user-select: none;
+      overflow: hidden;
+    }
+    #game-container {
+      text-align: center;
+      position: relative;
+      width: 100%;
+      max-width: 740px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .title-banner {
+      font-size: clamp(15px, 3.8vw, 22px);
+      font-weight: 900;
+      letter-spacing: 2px;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, #ff0055, #ff9900, #00ffcc, #66fcf1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 10px rgba(0, 255, 204, 0.4));
+    }
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      font-size: clamp(10px, 2.4vw, 14px);
+      font-weight: bold;
+      margin-bottom: 4px;
+      color: #45a29e;
+      padding: 0 4px;
+    }
+    .status-bar span {
+      color: #66fcf1;
+    }
+    .stage-badge {
+      color: #ffd700 !important;
+    }
+    .enemy-count {
+      color: #ff0055 !important;
+    }
+    canvas {
+      border: 2px solid #45a29e;
+      border-radius: 8px;
+      background-color: #020205;
+      box-shadow: 0 0 25px rgba(0, 255, 204, 0.25), inset 0 0 20px rgba(0,0,0,0.8);
+      touch-action: none;
+      cursor: pointer;
+      width: 100%;
+      max-width: 740px;
+      height: auto;
+      aspect-ratio: 740 / 560;
+      display: block;
+    }
+
+    /* 🎮 ゲームパッド式操作パネル */
+    .gamepad-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-top: 8px;
+      padding: 0 4px;
+      gap: 8px;
+    }
+    .dpad-left {
+      display: flex;
+      gap: 8px;
+      flex: 1;
+      max-width: 320px;
+      align-items: center;
+      justify-content: center;
+      padding: 0 5px;
+    }
+    .actions-right {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      max-width: 320px;
+    }
+
+    .touch-btn {
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: clamp(12px, 2.8vw, 15px);
+      transition: transform 0.05s, filter 0.15s;
+      touch-action: manipulation;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .touch-btn:active {
+      transform: scale(0.94);
+      filter: brightness(1.2);
+    }
+
+    /* 右手アクションボタン */
+    .btn-action-detonate {
+      background: linear-gradient(135deg, #ff0055, #ff5500);
+      color: #fff;
+      box-shadow: 0 0 12px rgba(255, 0, 85, 0.4);
+      height: 36px;
+    }
+    .btn-action-builder {
+      background: linear-gradient(135deg, #00ffcc, #0099ff);
+      color: #050e14;
+      box-shadow: 0 0 12px rgba(0, 255, 204, 0.4);
+      height: 36px;
+    }
+
+    /* 🖱️ トラックパッド（スワイプ専用エリア） */
+    .touchpad-area {
+      width: calc(100% - 8px);
+      max-width: 740px;
+      height: clamp(50px, 10vh, 80px);
+      margin-top: 8px;
+      background: linear-gradient(180deg, #11151c, #08090d);
+      border: 2px dashed #45a29e;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #45a29e;
+      font-size: clamp(11px, 2.5vw, 14px);
+      font-weight: bold;
+      touch-action: none;
+      user-select: none;
+      transition: border-color 0.1s, color 0.1s, background 0.1s;
+    }
+    .touchpad-area.active {
+      border-color: #66fcf1;
+      color: #66fcf1;
+      background: linear-gradient(180deg, #1a2433, #08090d);
+    }
+
+    .controls-guide {
+      font-size: clamp(11px, 2.5vw, 13px);
+      color: #b0c4de;
+      line-height: 1.5;
+      text-align: left;
+      width: 100%;
+      margin: 0;
+    }
+    .key-badge {
+      background: #1f2833;
+      border: 1px solid #66fcf1;
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: #66fcf1;
+      font-size: 11px;
+    }
+    .btn-sound {
+      background: #1f2833;
+      border: 1px solid #45a29e;
+      color: #66fcf1;
+      font-size: clamp(9px, 2vw, 12px);
+      padding: 3px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .btn-sound.muted {
+      color: #888;
+      border-color: #555;
+      background: #111;
+    }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+  <div class="title-banner">Detonoid: Chaos & Build Breaker</div>
+  <div class="status-bar">
+    <div>STAGE: <span id="stage" class="stage-badge">-</span></div>
+    <div>BLOCKS: <span id="remaining">2400</span></div>
+    <div>ENEMIES: <span id="enemyCount" class="enemy-count">0</span></div>
+    <div>LIVES: <span id="lives">3</span></div>
+    <div>SCORE: <span id="score">0</span></div>
+    <button id="soundToggleBtn" class="btn-sound">🔊 SOUND: ON</button>
+  </div>
+
+  <canvas id="canvas" width="740" height="560"></canvas>
+  
+  <div class="gamepad-container">
+    <div class="dpad-left">
+      <div class="controls-guide" id="stageGuide">
+        モードを選択してゲームを開始してください<br>(PC: 矢印キー/マウス, M: 消音)
+      </div>
+    </div>
+    <div class="actions-right">
+      <button id="detonateBtn" class="touch-btn btn-action-detonate">💥 DETONATE (スペース)</button>
+      <button id="builderBtn" class="touch-btn btn-action-builder">✨ BUILD & CANNON (B)</button>
+    </div>
+  </div>
+
+  <!-- スワイプ操作エリア -->
+  <div id="touchpad" class="touchpad-area">
+    👆 スワイプ操作エリア (Trackpad) 👆
+  </div>
+</div>
+
+<script>
+// Web Audio API Synthesizer
+class SoundFX {
+  constructor() {
+    this.ctx = null;
+    this.muted = false;
+  }
+  init() {
+    if (!this.ctx) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioContext();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  toggleMute() {
+    this.muted = !this.muted;
+    return !this.muted;
+  }
+
+  playBlockHit(freqOffset = 0) {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(600 + (freqOffset % 12) * 50, now);
+    osc.frequency.exponentialRampToValueAtTime(150, now + 0.08);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.08);
+  }
+
+  playPaddleBounce() {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(250, now);
+    osc.frequency.exponentialRampToValueAtTime(800, now + 0.12);
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.12);
+  }
+
+  playExplosion() {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    const bufferSize = this.ctx.sampleRate * 0.4;
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(800, now);
+    filter.frequency.exponentialRampToValueAtTime(80, now + 0.35);
+
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.6, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.005, now + 0.35);
+
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(this.ctx.destination);
+    noise.start(now);
+    noise.stop(now + 0.4);
+
+    const osc = this.ctx.createOscillator();
+    const oscGain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(30, now + 0.3);
+    oscGain.gain.setValueAtTime(0.5, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.005, now + 0.3);
+    osc.connect(oscGain);
+    oscGain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.35);
+  }
+
+  playBuildPing() {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(800, now);
+    osc.frequency.exponentialRampToValueAtTime(1600, now + 0.1);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.005, now + 0.1);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  }
+
+  playBuildSpread() {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq * 1.2, now + idx * 0.03);
+      osc.frequency.exponentialRampToValueAtTime(freq * 2.0, now + idx * 0.03 + 0.18);
+      gain.gain.setValueAtTime(0.2, now + idx * 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.03 + 0.18);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + idx * 0.03);
+      osc.stop(now + idx * 0.03 + 0.2);
+    });
+  }
+
+  playEnemySpawn() {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(600, now);
+    osc.frequency.setValueAtTime(300, now + 0.08);
+    osc.frequency.setValueAtTime(700, now + 0.16);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.22);
+  }
+
+  playEnemyHit() {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(450, now);
+    osc.frequency.linearRampToValueAtTime(200, now + 0.1);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  }
+
+  playEnemyDestroy() {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.exponentialRampToValueAtTime(70, now + 0.25);
+    gain.gain.setValueAtTime(0.35, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.25);
+  }
+
+  playRageWarning() {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(400, now);
+    osc.frequency.linearRampToValueAtTime(1000, now + 0.15);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.15);
+  }
+
+  play1Up() {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    [330, 392, 659, 523, 587, 784].forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+      gain.gain.setValueAtTime(0.2, now + idx * 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.12);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + idx * 0.05);
+      osc.stop(now + idx * 0.05 + 0.14);
+    });
+  }
+
+  playStageClear() {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    [523.25, 659.25, 783.99, 1046.50, 1318.51].forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+      gain.gain.setValueAtTime(0.25, now + idx * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.35);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + idx * 0.08);
+      osc.stop(now + idx * 0.08 + 0.4);
+    });
+  }
+
+  playPaddleDamaged() {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.linearRampToValueAtTime(60, now + 0.25);
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.25);
+  }
+
+  playLoseLife() {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.exponentialRampToValueAtTime(50, now + 0.4);
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.exponentialRampToValueAtTime(0.005, now + 0.4);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.4);
+  }
+}
+
+const sfx = new SoundFX();
+
+// Canvas & UI Setup
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const stageEl = document.getElementById("stage");
+const remainingEl = document.getElementById("remaining");
+const enemyCountEl = document.getElementById("enemyCount");
+const livesEl = document.getElementById("lives");
+const scoreEl = document.getElementById("score");
+const stageGuideEl = document.getElementById("stageGuide");
+const detonateBtn = document.getElementById("detonateBtn");
+const builderBtn = document.getElementById("builderBtn");
+const soundToggleBtn = document.getElementById("soundToggleBtn");
+
+const touchpad = document.getElementById("touchpad");
+
+// 2,400 Blocks
+const COLS = 60;
+const ROWS = 40;
+const GRID_LEFT = 10;
+const GRID_TOP = 20;
+const GRID_WIDTH = canvas.width - GRID_LEFT * 2;
+const GRID_HEIGHT = 280;
+
+const BLOCK_W = GRID_WIDTH / COLS;
+const BLOCK_H = GRID_HEIGHT / ROWS;
+
+// Paddle
+const PADDLE_HEIGHT = 10;
+const PADDLE_INITIAL_WIDTH = 130;
+const PADDLE_MIN_WIDTH = 12;
+let paddleWidth = PADDLE_INITIAL_WIDTH;
+let paddleX = (canvas.width - paddleWidth) / 2;
+let paddleDamageFlash = 0;
+
+// 移動フラグ ＆ ⚡ 移動速度アップ（ユーザー調整版）
+let moveLeft = false;
+let moveRight = false;
+const KEY_MOVE_SPEED = 21.0;
+
+// Game State
+let inTitleMenu = true;
+let currentStage = 1;
+let lastPlayedStage = 1;
+let grid = new Uint8Array(COLS * ROWS);
+let enemySpawns = new Uint8Array(COLS * ROWS);
+let remainingBlocks = 0;
+let score = 0;
+let lives = 3;
+let gameOver = false;
+let stageClear = false;
+let screenShake = 0;
+
+// ⚡ 内部処理としての怒り
+let enemyRage = 0; 
+
+// Entities
+let whiteBall = null;
+let builderBall = null;
+let enemies = [];
+let enemyBullets = [];
+let particles = [];
+let shockwaves = [];
+
+// Rainbow Table
+const ROW_COLORS = [];
+for (let r = 0; r < ROWS; r++) {
+  const hue = Math.floor((r / ROWS) * 300);
+  ROW_COLORS[r] = `hsl(${hue}, 90%, 55%)`;
+}
+
+// メニューボタン
+const BTN_TUTORIAL = { x: 70,  y: 310, w: 180, h: 54 };
+const BTN_BATTLE   = { x: 280, y: 310, w: 180, h: 54 };
+const BTN_CONTINUE = { x: 490, y: 310, w: 180, h: 54 };
+
+function toggleSound() {
+  sfx.init();
+  const isSoundOn = sfx.toggleMute();
+  if (isSoundOn) {
+    soundToggleBtn.textContent = "🔊 SOUND: ON";
+    soundToggleBtn.classList.remove("muted");
+  } else {
+    soundToggleBtn.textContent = "🔇 SOUND: OFF";
+    soundToggleBtn.classList.add("muted");
+  }
+}
+
+soundToggleBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  toggleSound();
+});
+
+function startGame(startStage) {
+  inTitleMenu = false;
+  currentStage = startStage;
+  lastPlayedStage = startStage;
+  score = 0;
+  lives = 3;
+  initStage();
+}
+
+function initStage() {
+  sfx.init();
+  lastPlayedStage = currentStage;
+  grid.fill(1);
+  enemySpawns.fill(0);
+  enemyRage = 0;
+  
+  let spawnRate = 0;
+  if (currentStage === 1) {
+    spawnRate = 0;
+  } else if (currentStage === 2) {
+    spawnRate = 0.0025;
+  } else {
+    spawnRate = Math.min(0.02, 0.004 + (currentStage - 3) * 0.0032);
+  }
+
+  for (let i = 0; i < grid.length; i++) {
+    if (Math.random() < spawnRate) {
+      enemySpawns[i] = 1;
+    }
+  }
+
+  paddleWidth = PADDLE_INITIAL_WIDTH;
+  paddleDamageFlash = 0;
+  countBlocks();
+  gameOver = false;
+  stageClear = false;
+  builderBall = null;
+  enemies = [];
+  enemyBullets = [];
+  particles = [];
+  shockwaves = [];
+  screenShake = 0;
+
+  resetWhiteBall();
+  updateUI();
+  updateStageGuide();
+}
+
+function updateStageGuide() {
+  if (inTitleMenu) {
+    stageGuideEl.innerHTML = `モードを選択してゲームを開始してください<br>(PC: 矢印キー/マウス, M: 消音)`;
+    return;
+  }
+  if (currentStage === 1) {
+    stageGuideEl.innerHTML = `<b>Stage 1: チュートリアル</b><br>敵なし！爆破＆埋め立ての快感を楽しもう！`;
+  } else if (currentStage === 2) {
+    stageGuideEl.innerHTML = `<b>Stage 2: 迎撃訓練</b><br>敵ドローン出現！<span class="key-badge">B</span> キャノンで狙い撃ちの練習！`;
+  } else {
+    stageGuideEl.innerHTML = `<b>Stage ${currentStage}: 本格戦闘</b><br><span style="color:#ff3366;">⚠️ 最大バー時敵撃破で1UP！極小被弾は即死！</span>`;
+  }
+}
+
+function nextStage() {
+  currentStage++;
+  sfx.playStageClear();
+  initStage();
+}
+
+function countBlocks() {
+  let count = 0;
+  for (let i = 0; i < grid.length; i++) {
+    if (grid[i] === 1) count++;
+  }
+  remainingBlocks = count;
+  return count;
+}
+
+function resetWhiteBall() {
+  whiteBall = {
+    x: canvas.width / 2,
+    y: canvas.height - 40,
+    vx: (Math.random() > 0.5 ? 1 : -1) * 3.5,
+    vy: -4.2,
+    radius: 5
+  };
+}
+
+function loseLifeAndRespawn() {
+  lives--;
+  sfx.playLoseLife();
+  paddleWidth = PADDLE_INITIAL_WIDTH;
+  enemyBullets = [];
+  enemyRage = 0;
+  updateUI();
+
+  if (lives <= 0) {
+    gameOver = true;
+  } else {
+    resetWhiteBall();
+  }
+}
+
+function spawnEnemy(x, y) {
+  sfx.playEnemySpawn();
+  enemies.push({
+    x: x,
+    y: y,
+    vx: (Math.random() - 0.5) * 3.0,
+    vy: Math.random() * 1.5 + 1.2,
+    radius: 11,
+    maxHp: 3,
+    hp: 3,
+    invincibleFrames: 45,
+    hitFlash: 0,
+    shootTimer: Math.floor(Math.random() * 60 + 50)
+  });
+}
+
+// 💥 白ボール任意起爆処理
+function triggerDetonation() {
+  sfx.init();
+  if (inTitleMenu) return;
+  if (gameOver) {
+    gameOver = false;
+    inTitleMenu = true;
+    updateUI();
+    updateStageGuide();
+    return;
+  }
+  if (stageClear) {
+    nextStage();
+    return;
+  }
+  if (!whiteBall) return;
+
+  const bx = whiteBall.x;
+  const by = whiteBall.y;
+  const EXPLODE_RADIUS = 50;
+
+  sfx.playExplosion();
+  screenShake = 12;
+
+  enemyRage = Math.min(100, enemyRage + 25);
+  if (enemyRage >= 50 && currentStage >= 3) {
+    sfx.playRageWarning();
+  }
+
+  const randomAngle = Math.random() * Math.PI * 2;
+  const chaoticSpeed = 5.2 + Math.random() * 4.5;
+  whiteBall.vx = Math.cos(randomAngle) * chaoticSpeed;
+  whiteBall.vy = Math.sin(randomAngle) * chaoticSpeed;
+
+  shockwaves.push({ x: bx, y: by, radius: 5, maxRadius: EXPLODE_RADIUS * 1.3, alpha: 1.0, color: "#ff0055" });
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const idx = r * COLS + c;
+      if (grid[idx] === 1) {
+        const blockCenterX = GRID_LEFT + c * BLOCK_W + BLOCK_W / 2;
+        const blockCenterY = GRID_TOP + r * BLOCK_H + BLOCK_H / 2;
+        const dist = Math.hypot(bx - blockCenterX, by - blockCenterY);
+
+        if (dist <= EXPLODE_RADIUS) {
+          grid[idx] = 0;
+          score += 10;
+          if (enemySpawns[idx] === 1) {
+            enemySpawns[idx] = 0;
+            spawnEnemy(blockCenterX, blockCenterY);
+          }
+        }
+      }
+    }
+  }
+
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    if (e.invincibleFrames <= 0 && Math.hypot(bx - e.x, by - e.y) <= EXPLODE_RADIUS + 15) {
+      damageEnemy(i, 2);
+    }
+  }
+
+  for (let i = enemyBullets.length - 1; i >= 0; i--) {
+    const eb = enemyBullets[i];
+    if (Math.hypot(bx - eb.x, by - eb.y) <= EXPLODE_RADIUS + 15) {
+      enemyBullets.splice(i, 1);
+    }
+  }
+
+  for (let i = 0; i < 35; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 8 + 3;
+    particles.push({
+      x: bx,
+      y: by,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      radius: Math.random() * 3.5 + 2,
+      color: Math.random() > 0.4 ? "#ff0055" : (Math.random() > 0.5 ? "#ffaa00" : "#ffffff"),
+      life: 1.0,
+      decay: 0.03
+    });
+  }
+
+  countBlocks();
+  updateUI();
+  if (remainingBlocks <= 0 && enemies.length === 0) {
+    stageClear = true;
+    sfx.playStageClear();
+  }
+}
+
+function damageEnemy(index, dmg = 1) {
+  const e = enemies[index];
+  e.hp -= dmg;
+  e.hitFlash = 10;
+
+  if (e.hp <= 0) {
+    destroyEnemy(index);
+  } else {
+    sfx.playEnemyHit();
+    for (let p = 0; p < 8; p++) {
+      particles.push({
+        x: e.x,
+        y: e.y,
+        vx: (Math.random() - 0.5) * 4,
+        vy: (Math.random() - 0.5) * 4,
+        radius: 2,
+        color: "#ffff00",
+        life: 0.6,
+        decay: 0.05
+      });
+    }
+  }
+}
+
+function destroyEnemy(index) {
+  const e = enemies[index];
+  sfx.playEnemyDestroy();
+  score += 250;
+
+  if (paddleWidth >= PADDLE_INITIAL_WIDTH) {
+    lives++;
+    sfx.play1Up();
+    for (let i = 0; i < 15; i++) {
+      particles.push({
+        x: paddleX + paddleWidth / 2,
+        y: canvas.height - 25,
+        vx: (Math.random() - 0.5) * 4,
+        vy: -Math.random() * 5 - 2,
+        radius: 3,
+        color: "#ffd700",
+        life: 1.0,
+        decay: 0.025
+      });
+    }
+  } else {
+    paddleWidth = Math.min(PADDLE_INITIAL_WIDTH, paddleWidth + 15);
+  }
+
+  for (let i = 0; i < 24; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 6 + 2;
+    particles.push({
+      x: e.x,
+      y: e.y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      radius: 3.5,
+      color: Math.random() > 0.5 ? "#ff0055" : "#ffcc00",
+      life: 1.0,
+      decay: 0.035
+    });
+  }
+  enemies.splice(index, 1);
+  updateUI();
+
+  if (remainingBlocks <= 0 && enemies.length === 0) {
+    stageClear = true;
+    sfx.playStageClear();
+  }
+}
+
+// 🧱✨ Builder Ball
+function triggerBuilderBall() {
+  sfx.init();
+  if (inTitleMenu || gameOver || stageClear) return;
+
+  if (builderBall) {
+    spreadBlocks(builderBall.x, builderBall.y);
+    builderBall = null;
+    return;
+  }
+
+  sfx.playBuildPing();
+  builderBall = {
+    x: paddleX + paddleWidth / 2,
+    y: canvas.height - PADDLE_HEIGHT - 20,
+    vx: (Math.random() - 0.5) * 1.5,
+    vy: -7.5,
+    radius: 8
+  };
+}
+
+function spreadBlocks(bx, by) {
+  const FILL_RADIUS = 60;
+  sfx.playBuildSpread();
+  shockwaves.push({ x: bx, y: by, radius: 5, maxRadius: FILL_RADIUS * 1.3, alpha: 1.0, color: "#00ffcc" });
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const idx = r * COLS + c;
+      const blockCenterX = GRID_LEFT + c * BLOCK_W + BLOCK_W / 2;
+      const blockCenterY = GRID_TOP + r * BLOCK_H + BLOCK_H / 2;
+      const dist = Math.hypot(bx - blockCenterX, by - blockCenterY);
+
+      if (dist <= FILL_RADIUS) {
+        grid[idx] = 1;
+      }
+    }
+  }
+
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    if (e.invincibleFrames <= 0 && Math.hypot(bx - e.x, by - e.y) <= FILL_RADIUS + 15) {
+      damageEnemy(i, 2);
+    }
+  }
+
+  for (let i = enemyBullets.length - 1; i >= 0; i--) {
+    const eb = enemyBullets[i];
+    if (Math.hypot(bx - eb.x, by - eb.y) <= FILL_RADIUS + 10) {
+      enemyBullets.splice(i, 1);
+    }
+  }
+
+  for (let i = 0; i < 40; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 6 + 2;
+    particles.push({
+      x: bx,
+      y: by,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      radius: Math.random() * 3 + 2,
+      color: "#00ffcc",
+      life: 1.0,
+      decay: 0.025
+    });
+  }
+
+  countBlocks();
+  updateUI();
+}
+
+function updateUI() {
+  stageEl.textContent = inTitleMenu ? "-" : currentStage;
+  remainingEl.textContent = remainingBlocks;
+  enemyCountEl.textContent = enemies.length;
+  livesEl.textContent = lives;
+  scoreEl.textContent = score;
+}
+
+// 🖱️ スワイプ・マウス追従操作
+function setPaddlePos(clientX) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const relX = (clientX - rect.left) * scaleX;
+  paddleX = Math.max(0, Math.min(canvas.width - paddleWidth, relX - paddleWidth / 2));
+}
+
+canvas.addEventListener("mousemove", (e) => setPaddlePos(e.clientX));
+canvas.addEventListener("touchmove", (e) => {
+  if (e.touches.length > 0) setPaddlePos(e.touches[0].clientX);
+});
+
+// 👆 トラックパッド（相対移動）の実装
+let lastTouchX = null;
+
+touchpad.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  touchpad.setPointerCapture(e.pointerId);
+  lastTouchX = e.clientX;
+  touchpad.classList.add("active");
+});
+
+touchpad.addEventListener("pointermove", (e) => {
+  if (lastTouchX === null) return;
+  e.preventDefault();
+  
+  const currentX = e.clientX;
+  const deltaX = currentX - lastTouchX;
+  
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const adjustedDelta = deltaX * scaleX * 1.6;
+  
+  paddleX = Math.max(0, Math.min(canvas.width - paddleWidth, paddleX + adjustedDelta));
+  lastTouchX = currentX;
+});
+
+touchpad.addEventListener("pointerup", (e) => {
+  touchpad.releasePointerCapture(e.pointerId);
+  lastTouchX = null;
+  touchpad.classList.remove("active");
+});
+
+touchpad.addEventListener("pointercancel", (e) => {
+  lastTouchX = null;
+  touchpad.classList.remove("active");
+});
+
+function getCanvasCoords(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return {
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top) * scaleY
+  };
+}
+
+function handleInput(e) {
+  sfx.init();
+  const coords = getCanvasCoords(e);
+  const clickX = coords.x;
+  const clickY = coords.y;
+
+  if (gameOver) {
+    gameOver = false;
+    inTitleMenu = true;
+    updateUI();
+    updateStageGuide();
+    return;
+  }
+
+  if (inTitleMenu) {
+    const hasContinue = lastPlayedStage > 2;
+    const btn1_x = hasContinue ? BTN_TUTORIAL.x : 130;
+    const btn1_w = hasContinue ? BTN_TUTORIAL.w : 220;
+    const btn2_x = hasContinue ? BTN_BATTLE.x : 390;
+    const btn2_w = hasContinue ? BTN_BATTLE.w : 220;
+
+    if (clickX >= btn1_x && clickX <= btn1_x + btn1_w &&
+        clickY >= BTN_TUTORIAL.y && clickY <= BTN_TUTORIAL.y + BTN_TUTORIAL.h) {
+      startGame(1);
+      return;
+    }
+    if (clickX >= btn2_x && clickX <= btn2_x + btn2_w &&
+        clickY >= BTN_BATTLE.y && clickY <= BTN_BATTLE.y + BTN_BATTLE.h) {
+      startGame(2);
+      return;
+    }
+    if (hasContinue &&
+        clickX >= BTN_CONTINUE.x && clickX <= BTN_CONTINUE.x + BTN_CONTINUE.w &&
+        clickY >= BTN_CONTINUE.y && clickY <= BTN_CONTINUE.y + BTN_CONTINUE.h) {
+      startGame(lastPlayedStage);
+      return;
+    }
+    return;
+  }
+
+  triggerDetonation();
+}
+
+canvas.addEventListener("pointerdown", handleInput);
+
+// 🎮 右手 爆発＆ビルドボタン
+detonateBtn.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  sfx.init();
+  if (gameOver) {
+    gameOver = false;
+    inTitleMenu = true;
+    updateUI();
+    updateStageGuide();
+  } else if (inTitleMenu) {
+    startGame(1);
+  } else {
+    triggerDetonation();
+  }
+});
+
+builderBtn.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  sfx.init();
+  if (inTitleMenu) {
+    startGame(2);
+  } else {
+    triggerBuilderBall();
+  }
+});
+
+// PCキーボード操作
+window.addEventListener("keydown", (e) => {
+  sfx.init();
+  if (e.key === "ArrowLeft")  moveLeft = true;
+  if (e.key === "ArrowRight") moveRight = true;
+  if (e.code === "Space") {
+    e.preventDefault();
+    if (gameOver) {
+      gameOver = false;
+      inTitleMenu = true;
+      updateUI();
+      updateStageGuide();
+    } else if (inTitleMenu) {
+      startGame(1);
+    } else {
+      triggerDetonation();
+    }
+  } else if (e.key === "b" || e.key === "B") {
+    if (inTitleMenu) {
+      startGame(2);
+    } else {
+      triggerBuilderBall();
+    }
+  } else if (e.key === "c" || e.key === "C") {
+    if (inTitleMenu && lastPlayedStage > 2) {
+      startGame(lastPlayedStage);
+    }
+  } else if (e.key === "m" || e.key === "M") {
+    toggleSound();
+  }
+});
+
+window.addEventListener("keyup", (e) => {
+  if (e.key === "ArrowLeft")  moveLeft = false;
+  if (e.key === "ArrowRight") moveRight = false;
+});
+
+// ブロック衝突
+function handleWhiteBallCollision(b) {
+  if (b.x >= GRID_LEFT && b.x < GRID_LEFT + GRID_WIDTH &&
+      b.y >= GRID_TOP && b.y < GRID_TOP + GRID_HEIGHT) {
+    
+    const col = Math.floor((b.x - GRID_LEFT) / BLOCK_W);
+    const row = Math.floor((b.y - GRID_TOP) / BLOCK_H);
+
+    if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
+      const idx = row * COLS + col;
+      if (grid[idx] === 1) {
+        grid[idx] = 0;
+        score += 10;
+        b.vy = -b.vy;
+        sfx.playBlockHit(row);
+
+        if (enemySpawns[idx] === 1) {
+          enemySpawns[idx] = 0;
+          spawnEnemy(GRID_LEFT + col * BLOCK_W + BLOCK_W / 2, GRID_TOP + row * BLOCK_H + BLOCK_H / 2);
+        }
+
+        countBlocks();
+        updateUI();
+        if (remainingBlocks <= 0 && enemies.length === 0) {
+          stageClear = true;
+          sfx.playStageClear();
+        }
+      }
+    }
+  }
+}
+
+function handleBuilderFill(b) {
+  if (b.x >= GRID_LEFT && b.x < GRID_LEFT + GRID_WIDTH &&
+      b.y >= GRID_TOP && b.y < GRID_TOP + GRID_HEIGHT) {
+    
+    const col = Math.floor((b.x - GRID_LEFT) / BLOCK_W);
+    const row = Math.floor((b.y - GRID_TOP) / BLOCK_H);
+
+    if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
+      const idx = row * COLS + col;
+      if (grid[idx] === 0) {
+        grid[idx] = 1;
+        if (Math.random() < 0.25) sfx.playBuildPing();
+        countBlocks();
+        updateUI();
+      }
+    }
+  }
+}
+
+function update() {
+  if (inTitleMenu || gameOver || stageClear) return;
+
+  // 🕹️ ボタン/キーによる左右高速移動
+  if (moveLeft) {
+    paddleX = Math.max(0, paddleX - KEY_MOVE_SPEED);
+  }
+  if (moveRight) {
+    paddleX = Math.min(canvas.width - paddleWidth, paddleX + KEY_MOVE_SPEED);
+  }
+
+  if (screenShake > 0) screenShake *= 0.88;
+  if (screenShake < 0.1) screenShake = 0;
+  if (paddleDamageFlash > 0) paddleDamageFlash--;
+
+  if (enemyRage > 0) {
+    enemyRage = Math.max(0, enemyRage - 0.2);
+  }
+
+  // 1. White Ball
+  if (whiteBall) {
+    const b = whiteBall;
+    b.x += b.vx;
+    b.y += b.vy;
+
+    if (b.x - b.radius < 0) { b.x = b.radius; b.vx = Math.abs(b.vx); sfx.playBlockHit(1); }
+    else if (b.x + b.radius > canvas.width) { b.x = canvas.width - b.radius; b.vx = -Math.abs(b.vx); sfx.playBlockHit(1); }
+    if (b.y - b.radius < 0) { b.y = b.radius; b.vy = Math.abs(b.vy); sfx.playBlockHit(1); }
+
+    handleWhiteBallCollision(b);
+
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const e = enemies[i];
+      if (e.invincibleFrames <= 0 && Math.hypot(b.x - e.x, b.y - e.y) < b.radius + e.radius) {
+        damageEnemy(i, 1);
+        b.vy = -b.vy;
+      }
+    }
+
+    const paddleY = canvas.height - PADDLE_HEIGHT - 15;
+    if (b.y + b.radius >= paddleY && b.y - b.radius <= paddleY + PADDLE_HEIGHT) {
+      if (b.x >= paddleX && b.x <= paddleX + paddleWidth && b.vy > 0) {
+        const hit = (b.x - (paddleX + paddleWidth / 2)) / (paddleWidth / 2);
+        const speed = Math.hypot(b.vx, b.vy);
+        b.vx = hit * 4.8;
+        b.vy = -Math.sqrt(Math.max(9, speed * speed - b.vx * b.vx));
+        sfx.playPaddleBounce();
+      }
+    }
+
+    if (b.y - b.radius > canvas.height) {
+      loseLifeAndRespawn();
+    }
+  }
+
+  // 2. Builder Ball
+  if (builderBall) {
+    const b = builderBall;
+    b.x += b.vx;
+    b.y += b.vy;
+
+    if (b.x - b.radius < 0) { b.x = b.radius; b.vx = Math.abs(b.vx); }
+    else if (b.x + b.radius > canvas.width) { b.x = canvas.width - b.radius; b.vx = -Math.abs(b.vx); }
+
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const e = enemies[i];
+      if (e.invincibleFrames <= 0 && Math.hypot(b.x - e.x, b.y - e.y) < b.radius + e.radius) {
+        damageEnemy(i, 2);
+        spreadBlocks(b.x, b.y);
+        builderBall = null;
+        break;
+      }
+    }
+
+    if (builderBall) {
+      if (b.y - b.radius < 0) {
+        spreadBlocks(b.x, 10);
+        builderBall = null;
+      } else {
+        handleBuilderFill(b);
+      }
+    }
+  }
+
+  // 3. 敵ドローンのAI
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+
+    const speedMultiplier = 1.0 + (enemyRage / 100) * 1.5;
+    e.x += e.vx * speedMultiplier;
+    e.y += e.vy * speedMultiplier;
+
+    if (e.invincibleFrames > 0) e.invincibleFrames--;
+    if (e.hitFlash > 0) e.hitFlash--;
+
+    if (e.x - e.radius < 10 || e.x + e.radius > canvas.width - 10) e.vx = -e.vx;
+    if (e.y < 30 || e.y > 360) e.vy = -e.vy;
+
+    if (currentStage >= 3) {
+      const timerDecrement = 1 + Math.floor(enemyRage / 22);
+      e.shootTimer -= timerDecrement;
+
+      if (e.shootTimer <= 0) {
+        e.shootTimer = Math.floor(Math.random() * 70 + 60);
+
+        const targetX = paddleX + paddleWidth / 2;
+        const targetY = canvas.height - 20;
+        
+        const spread = (1.0 - (enemyRage / 100)) * 0.35;
+        const baseAngle = Math.atan2(targetY - e.y, targetX - e.x);
+        const aimAngle = baseAngle + (Math.random() - 0.5) * spread;
+
+        const bulletSpeed = 3.2 + (enemyRage / 100) * 2.8;
+
+        enemyBullets.push({
+          x: e.x,
+          y: e.y,
+          vx: Math.cos(aimAngle) * bulletSpeed,
+          vy: Math.sin(aimAngle) * bulletSpeed,
+          radius: enemyRage > 60 ? 5.5 : 4,
+          isEnraged: enemyRage > 50
+        });
+
+        if (enemyRage >= 75) {
+          enemyBullets.push({
+            x: e.x + (Math.random() - 0.5) * 10,
+            y: e.y,
+            vx: Math.cos(aimAngle) * (bulletSpeed * 0.9),
+            vy: Math.sin(aimAngle) * (bulletSpeed * 0.9),
+            radius: 4.5,
+            isEnraged: true
+          });
+        }
+      }
+    }
+  }
+
+  // 4. 敵ミサイル衝突判定
+  const paddleY = canvas.height - PADDLE_HEIGHT - 15;
+  for (let i = enemyBullets.length - 1; i >= 0; i--) {
+    const eb = enemyBullets[i];
+    eb.x += eb.vx;
+    eb.y += eb.vy;
+
+    if (eb.y >= paddleY && eb.y <= paddleY + PADDLE_HEIGHT &&
+        eb.x >= paddleX && eb.x <= paddleX + paddleWidth) {
+      
+      if (paddleWidth <= PADDLE_MIN_WIDTH) {
+        for (let p = 0; p < 30; p++) {
+          particles.push({
+            x: paddleX + paddleWidth / 2,
+            y: paddleY,
+            vx: (Math.random() - 0.5) * 8,
+            vy: -Math.random() * 6 - 2,
+            radius: 3.5,
+            color: Math.random() > 0.5 ? "#ff0055" : "#66fcf1",
+            life: 1.0,
+            decay: 0.03
+          });
+        }
+        screenShake = 16;
+        enemyBullets.splice(i, 1);
+        loseLifeAndRespawn();
+        continue;
+      }
+
+      paddleWidth = Math.max(PADDLE_MIN_WIDTH, paddleWidth - 20);
+      paddleDamageFlash = 15;
+      sfx.playPaddleDamaged();
+      screenShake = 8;
+
+      for (let p = 0; p < 12; p++) {
+        particles.push({
+          x: eb.x,
+          y: eb.y,
+          vx: (Math.random() - 0.5) * 4,
+          vy: -Math.random() * 3,
+          radius: 2.5,
+          color: "#ff0055",
+          life: 1.0,
+          decay: 0.05
+        });
+      }
+
+      enemyBullets.splice(i, 1);
+      continue;
+    }
+
+    if (eb.y > canvas.height || eb.x < 0 || eb.x > canvas.width) {
+      enemyBullets.splice(i, 1);
+    }
+  }
+
+  // 5. Shockwaves
+  for (let i = shockwaves.length - 1; i >= 0; i--) {
+    const sw = shockwaves[i];
+    sw.radius += 3.5;
+    sw.alpha -= 0.04;
+    if (sw.alpha <= 0 || sw.radius >= sw.maxRadius) {
+      shockwaves.splice(i, 1);
+    }
+  }
+
+  // 6. Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= p.decay;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  updateUI();
+}
+
+function drawMenu() {
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 32px sans-serif";
+  ctx.textAlign = "center";
+  ctx.shadowColor = "#00ffcc";
+  ctx.shadowBlur = 15;
+  ctx.fillText("DETONOID", canvas.width / 2, 140);
+
+  ctx.fillStyle = "#66fcf1";
+  ctx.font = "bold 16px sans-serif";
+  ctx.shadowBlur = 8;
+  ctx.fillText("CHAOS & BUILD BREAKER", canvas.width / 2, 175);
+  ctx.restore();
+
+  ctx.fillStyle = "#a0aab8";
+  ctx.font = "14px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("スタートモードを選択してください", canvas.width / 2, 235);
+
+  const hasContinue = lastPlayedStage > 2;
+
+  const btn1_x = hasContinue ? BTN_TUTORIAL.x : 130;
+  const btn1_w = hasContinue ? BTN_TUTORIAL.w : 220;
+  const btn2_x = hasContinue ? BTN_BATTLE.x : 390;
+  const btn2_w = hasContinue ? BTN_BATTLE.w : 220;
+
+  // ボタン 1: チュートリアル
+  ctx.save();
+  ctx.fillStyle = "rgba(0, 255, 204, 0.15)";
+  ctx.strokeStyle = "#00ffcc";
+  ctx.lineWidth = 2;
+  ctx.shadowColor = "#00ffcc";
+  ctx.shadowBlur = 10;
+  ctx.fillRect(btn1_x, BTN_TUTORIAL.y, btn1_w, BTN_TUTORIAL.h);
+  ctx.strokeRect(btn1_x, BTN_TUTORIAL.y, btn1_w, BTN_TUTORIAL.h);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 15px sans-serif";
+  ctx.fillText("🌱 TUTORIAL", btn1_x + btn1_w / 2, BTN_TUTORIAL.y + 24);
+  ctx.font = "11px sans-serif";
+  ctx.fillStyle = "#66fcf1";
+  ctx.fillText("Stage 1 (敵なし・破壊)", btn1_x + btn1_w / 2, BTN_TUTORIAL.y + 42);
+
+  // ボタン 2: 敵ありバトル
+  ctx.fillStyle = "rgba(255, 0, 85, 0.15)";
+  ctx.strokeStyle = "#ff0055";
+  ctx.shadowColor = "#ff0055";
+  ctx.fillRect(btn2_x, BTN_BATTLE.y, btn2_w, BTN_BATTLE.h);
+  ctx.strokeRect(btn2_x, BTN_BATTLE.y, btn2_w, BTN_BATTLE.h);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 15px sans-serif";
+  ctx.fillText("⚔️ BATTLE", btn2_x + btn2_w / 2, BTN_BATTLE.y + 24);
+  ctx.font = "11px sans-serif";
+  ctx.fillStyle = "#ff6699";
+  ctx.fillText("Stage 2 (敵ドローン戦)", btn2_x + btn2_w / 2, BTN_BATTLE.y + 42);
+
+  // ボタン 3: 続きから再開
+  if (hasContinue) {
+    ctx.fillStyle = "rgba(255, 215, 0, 0.18)";
+    ctx.strokeStyle = "#ffd700";
+    ctx.shadowColor = "#ffd700";
+    ctx.fillRect(BTN_CONTINUE.x, BTN_CONTINUE.y, BTN_CONTINUE.w, BTN_CONTINUE.h);
+    ctx.strokeRect(BTN_CONTINUE.x, BTN_CONTINUE.y, BTN_CONTINUE.w, BTN_CONTINUE.h);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 15px sans-serif";
+    ctx.fillText("⏩ CONTINUE", BTN_CONTINUE.x + BTN_CONTINUE.w / 2, BTN_CONTINUE.y + 24);
+    ctx.font = "11px sans-serif";
+    ctx.fillStyle = "#ffd700";
+    ctx.fillText(`Stage ${lastPlayedStage} から再開`, BTN_CONTINUE.x + BTN_CONTINUE.w / 2, BTN_CONTINUE.y + 42);
+  }
+  ctx.restore();
+
+  ctx.fillStyle = "#778899";
+  ctx.font = "12px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("ボタンをクリック / タップでスタート", canvas.width / 2, 420);
+}
+
+function draw() {
+  ctx.save();
+  if (screenShake > 0) {
+    const sx = (Math.random() - 0.5) * screenShake;
+    const sy = (Math.random() - 0.5) * screenShake;
+    ctx.translate(sx, sy);
+  }
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // ブロック描画
+  for (let r = 0; r < ROWS; r++) {
+    ctx.fillStyle = ROW_COLORS[r];
+    for (let c = 0; c < COLS; c++) {
+      if (grid[r * COLS + c] === 1) {
+        ctx.fillRect(
+          GRID_LEFT + c * BLOCK_W + 0.5,
+          GRID_TOP + r * BLOCK_H + 0.5,
+          BLOCK_W - 1,
+          BLOCK_H - 1
+        );
+      }
+    }
+  }
+
+  // 敵ドローン描画
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i];
+    ctx.save();
+
+    if (e.hitFlash > 0) {
+      ctx.fillStyle = "#ffffff";
+    } else if (e.invincibleFrames > 0 && Math.floor(e.invincibleFrames / 4) % 2 === 0) {
+      ctx.fillStyle = "#ff99bb";
+    } else if (enemyRage > 50) {
+      ctx.fillStyle = Math.floor(Date.now() / 80) % 2 === 0 ? "#ff0000" : "#ff6600";
+    } else {
+      ctx.fillStyle = "#ff0055";
+    }
+
+    ctx.shadowColor = enemyRage > 50 ? "#ff0000" : "#ff0055";
+    ctx.shadowBlur = enemyRage > 50 ? 20 : 12;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = enemyRage > 50 ? "#ffffff" : "#ffff00";
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    const barW = 18;
+    const barH = 3;
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.fillRect(e.x - barW / 2, e.y - e.radius - 6, barW, barH);
+    ctx.fillStyle = e.hp === 3 ? "#00ffcc" : (e.hp === 2 ? "#ffcc00" : "#ff0055");
+    ctx.fillRect(e.x - barW / 2, e.y - e.radius - 6, (barW * e.hp) / e.maxHp, barH);
+
+    ctx.restore();
+  }
+
+  // 敵ミサイル
+  for (let i = 0; i < enemyBullets.length; i++) {
+    const eb = enemyBullets[i];
+    ctx.save();
+    ctx.fillStyle = eb.isEnraged ? "#ff0000" : "#ff3366";
+    ctx.shadowColor = "#ff0000";
+    ctx.shadowBlur = eb.isEnraged ? 12 : 8;
+    ctx.beginPath();
+    ctx.arc(eb.x, eb.y, eb.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ショックウェーブ
+  for (let i = 0; i < shockwaves.length; i++) {
+    const sw = shockwaves[i];
+    ctx.save();
+    ctx.strokeStyle = sw.color;
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = Math.max(0, sw.alpha);
+    ctx.beginPath();
+    ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // パーティクル
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i];
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1.0;
+
+  // パドル
+  ctx.fillStyle = paddleDamageFlash > 0 ? "#ff0055" : "#66fcf1";
+  ctx.shadowColor = paddleDamageFlash > 0 ? "#ff0055" : "#66fcf1";
+  ctx.shadowBlur = paddleDamageFlash > 0 ? 18 : 10;
+  ctx.fillRect(paddleX, canvas.height - PADDLE_HEIGHT - 15, paddleWidth, PADDLE_HEIGHT);
+  ctx.shadowBlur = 0;
+
+  // 白ボール
+  if (whiteBall) {
+    ctx.save();
+    ctx.shadowColor = "#ffffff";
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(whiteBall.x, whiteBall.y, whiteBall.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ビルダーボール
+  if (builderBall) {
+    ctx.save();
+    ctx.shadowColor = "#00ffcc";
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = "#00ffcc";
+    ctx.beginPath();
+    ctx.arc(builderBall.x, builderBall.y, builderBall.radius + Math.sin(Date.now() * 0.03) * 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(builderBall.x, builderBall.y, builderBall.radius * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // 1. タイトルメニュー表示
+  if (inTitleMenu) {
+    ctx.fillStyle = "rgba(8, 9, 13, 0.95)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    drawMenu();
+  }
+
+  // 2. ゲームオーバー画面
+  if (gameOver) {
+    ctx.fillStyle = "rgba(4, 5, 8, 0.95)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "#ff0055";
+    ctx.font = "900 36px sans-serif";
+    ctx.textAlign = "center";
+    ctx.shadowColor = "#ff0055";
+    ctx.shadowBlur = 15;
+    ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 20);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = "#ffd700";
+    ctx.font = "bold 15px sans-serif";
+    ctx.fillText(`Reached Stage ${lastPlayedStage}`, canvas.width / 2, canvas.height / 2 + 15);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "14px sans-serif";
+    ctx.fillText("クリック / タップでメニューに戻る", canvas.width / 2, canvas.height / 2 + 50);
+  } else if (stageClear) {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "#ffd700";
+    ctx.font = "bold 32px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(`★ STAGE ${currentStage} COMPLETE! ★`, canvas.width / 2, canvas.height / 2 - 10);
+
+    ctx.fillStyle = "#66fcf1";
+    ctx.font = "16px sans-serif";
+    ctx.fillText("スペース / Click for Next Stage", canvas.width / 2, canvas.height / 2 + 30);
+  }
+
+  ctx.restore();
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+grid.fill(1);
+countBlocks();
+updateUI();
+updateStageGuide();
+gameLoop();
+</script>
+</body>
+</html>
